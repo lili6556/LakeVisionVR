@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width,initial-scale=1.0">
+
+<title>Cabine - Lake Vision</title>
+
+<script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+
+<link rel="preconnect"
+href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@500;700&display=swap"
+rel="stylesheet">
+
+<style>
+
+body{
+
+margin:0;
+
+overflow:hidden;
+
+background:#000;
+
+font-family:Rajdhani;
+
+}
+
+#fade{
+
+position:absolute;
+
+inset:0;
+
+background:black;
+
+opacity:0;
+
+pointer-events:none;
+
+transition:1s;
+
+z-index:99;
+
+}
+
+#hud{
+
+position:absolute;
+
+top:20px;
+
+left:50%;
+
+transform:translateX(-50%);
+
+font-family:Orbitron;
+
+color:#6dffc4;
+
+letter-spacing:4px;
+
+font-size:14px;
+
+z-index:20;
+
+text-shadow:0 0 15px #00ff9d;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="fade"></div>
+
+<div id="hud">
+
+COLHEITA EM ANDAMENTO
+
+</div>
+
+<a-scene
+background="color:#87CEEB"
+fog="type: exponential; color: #bcd9e0; density: 0.014">
+
+<a-assets>
+
+<audio
+id="motor"
+src="static/audio/motor.mp3"
+preload="auto">
+</audio>
+
+<audio
+id="coleta"
+src="static/audio/coleta.mp3"
+preload="auto">
+</audio>
+
+</a-assets>
+
+<a-sky id="ceu" color="#87CEEB"></a-sky>
+
+<!-- morros distantes, dão profundidade e se misturam com a neblina -->
+<a-cone
+    radius-bottom="70"
+    radius-top="0"
+    height="16"
+    position="-90 -8 -70"
+    material="shader:flat; color:#9fb98a; opacity:0.55; transparent:true">
+</a-cone>
+
+<a-cone
+    radius-bottom="90"
+    radius-top="0"
+    height="20"
+    position="80 -9 -95"
+    material="shader:flat; color:#8fae7c; opacity:0.5; transparent:true">
+</a-cone>
+
+<a-cone
+    radius-bottom="60"
+    radius-top="0"
+    height="14"
+    position="10 -8 -110"
+    material="shader:flat; color:#a7c093; opacity:0.45; transparent:true">
+</a-cone>
+
+<!-- sol suave no horizonte -->
+<a-circle
+    id="sol"
+    radius="6"
+    position="-25 22 -95"
+    material="shader:flat; color:#fff3cf; opacity:0.9">
+</a-circle>
+
+<a-light
+type="ambient"
+color="#fff2d9"
+intensity="0.85">
+</a-light>
+
+<a-light
+
+type="directional"
+
+color="#fff6e0"
+
+intensity="1.3"
+
+castShadow="true"
+
+position="3 10 2">
+
+</a-light>
+
+<!-- luz de preenchimento fria, simula céu -->
+<a-light
+    type="directional"
+    color="#bcd9e8"
+    intensity="0.3"
+    position="-4 6 -4">
+</a-light>
+
+<!-- chão (com textura procedural de grama) -->
+
+<a-plane
+
+id="chaoGrama"
+
+rotation="-90 0 0"
+
+width="300"
+
+height="300"
+
+shadow="receive:true"
+
+material="color:#7b8c42; roughness:0.95; metalness:0">
+
+</a-plane>
+
+<!-- estrada (com textura procedural de asfalto) -->
+
+<a-plane
+
+id="estrada"
+
+rotation="-90 0 0"
+
+position="0 0.02 0"
+
+width="8"
+
+height="300"
+
+shadow="receive:true"
+
+material="color:#6f8a3f; roughness:0.95; metalness:0">
+
+</a-plane>
+
+<!-- câmera + janela HUD do Leak Vision (fixa na frente do usuário) -->
+
+<a-camera
+id="camera"
+position="0 1.65 0">
+
+    <a-entity
+    id="cursor"
+    cursor="fuse: true; fuseTimeout: 1000"
+    raycaster="objects: .clickable; far:30"
+    position="0 0 -1"
+
+    geometry="primitive:ring;
+              radiusInner:0.007;
+              radiusOuter:0.009"
+
+    material="color:#6dffc4;
+              shader:flat;
+              opacity:0.9"
+
+    animation__fusing="
+        property:geometry.radiusOuter;
+        startEvents:fusing;
+        from:0.009;
+        to:0.026;
+        dur:1000;
+        easing:linear"
+
+    animation__click="
+        property:scale;
+        startEvents:click;
+        from:1.4 1.4 1.4;
+        to:1 1 1;
+        dur:200"
+
+    animation__reset="
+        property:geometry.radiusOuter;
+        startEvents:mouseleave;
+        to:0.009;
+        dur:150">
+</a-entity>
+
+</a-camera>
+
+<a-entity
+id="btnLeak"
+seguir-camera
+visible="false"
+position="0 1.55 -1.55"
+scale="0.45 0.45 0.45"
+
+animation__entrada="
+property: scale;
+startEvents: aparecer;
+from: 0.01 0.01 0.01;
+to: 0.45 0.45 0.45;
+dur: 350;
+easing: easeOutBack">
+
+    <a-plane
+    width="3.15"
+    height="1.35"
+    position="0 0 -0.03"
+    material="color:#00ff9d; opacity:0.16; shader:flat">
+    </a-plane>
+
+    <a-plane
+    width="2.95"
+    height="1.15"
+    position="0 0 -0.02"
+    material="color:#00ff9d; shader:flat">
+    </a-plane>
+
+    <a-plane
+    width="2.85"
+    height="1.05"
+    position="0 0 -0.01"
+    material="color:#03170d; shader:flat">
+    </a-plane>
+
+    <a-plane
+    width="2.85"
+    height="0.22"
+    position="0 0.42 0"
+    material="color:#00ff9d; opacity:0.18; shader:flat">
+    </a-plane>
+
+    <a-text
+    value="SISTEMA LEAK VISION"
+    align="center"
+    color="#9dffd4"
+    width="3.4"
+    position="0 0.42 0.01">
+    </a-text>
+
+    <a-text
+    value="Falha detectada na colheitadeira."
+    align="center"
+    color="#ffffff"
+    width="3.1"
+    position="0 0.14 0.01">
+    </a-text>
+
+    <a-plane
+id="btnLeakClick"
+class="clickable"
+width="2.45"
+height="0.42"
+position="0 -0.22 0.05"
+material="shader: flat; color:#02160d">
+
+        <a-plane
+        width="2.55"
+        height="0.48"
+        position="0 0 -0.005"
+        material="color:#00ff9d; opacity:0.8">
+        </a-plane>
+
+        <a-text
+        value="UTILIZAR O LEAK VISION"
+        align="center"
+        width="3.2"
+        color="#ffffff"
+        position="0 0 0.01">
+        </a-text>
+
+    </a-plane>
+
+</a-entity>
+
+<!-- CABINE -->
+
+<a-entity id="cabine">
+
+<!-- piso -->
+
+<a-box
+
+width="2.7"
+
+height="0.1"
+
+depth="2.5"
+
+position="0 0.6 0"
+
+shadow="cast:true; receive:true"
+
+material="color:#3a3a3d; metalness:0.05; roughness:0.7">
+
+</a-box>
+
+<!-- teto -->
+
+<a-box
+
+width="2.7"
+
+height="0.12"
+
+depth="2.5"
+
+position="0 2.8 0"
+
+shadow="cast:true; receive:true"
+
+material="color:#2c2c2f; metalness:0.05; roughness:0.7">
+
+</a-box>
+
+<!-- coluna esquerda -->
+
+<a-box
+
+width="0.08"
+
+height="2.2"
+
+depth="0.08"
+
+position="-1.3 1.7 -1.2"
+
+shadow="cast:true"
+
+material="color:#1c1c1e; metalness:0.1; roughness:0.6">
+
+</a-box>
+
+<!-- coluna direita -->
+
+<a-box
+
+width="0.08"
+
+height="2.2"
+
+depth="0.08"
+
+position="1.3 1.7 -1.2"
+
+shadow="cast:true"
+
+material="color:#1c1c1e; metalness:0.1; roughness:0.6">
+
+</a-box>
+
+<!-- traseira esquerda -->
+
+<a-box
+
+width="0.08"
+
+height="2.2"
+
+depth="0.08"
+
+position="-1.3 1.7 1.2"
+
+shadow="cast:true"
+
+material="color:#1c1c1e; metalness:0.1; roughness:0.6">
+
+</a-box>
+
+<!-- traseira direita -->
+
+<a-box
+
+width="0.08"
+
+height="2.2"
+
+depth="0.08"
+
+position="1.3 1.7 1.2"
+
+shadow="cast:true"
+
+material="color:#1c1c1e; metalness:0.1; roughness:0.6">
+
+</a-box>
+
+<!-- painel (antes ficava totalmente preto: tinha metalness alto sem
+     nenhum mapa de ambiente na cena pra refletir, então "metal" virava
+     um buraco preto. Baixei o metalness pra ele mostrar a cor de verdade) -->
+
+<a-box
+
+width="2"
+
+height=".4"
+
+depth=".4"
+
+position="0 1.15 -1"
+
+shadow="cast:true"
+
+material="color:#232323; metalness:0.05; roughness:0.75">
+
+</a-box>
+
+<!-- painel luminoso -->
+
+<a-plane
+
+width="1.5"
+
+height=".28"
+
+position="0 1.23 -.79"
+
+material="color:#001b12; emissive:#00ff9d; emissiveIntensity:0.55; shader:standard">
+
+</a-plane>
+
+<!-- volante -->
+
+<a-torus
+
+radius="0.23"
+
+radius-tubular="0.025"
+
+rotation="70 0 0"
+
+position="0 .95 -.68"
+
+material="color:#161616; metalness:0.05; roughness:0.6">
+
+</a-torus>
+
+<a-cylinder
+
+radius=".02"
+
+height=".32"
+
+rotation="70 0 0"
+
+position="0 .95 -.68"
+
+material="color:#161616; metalness:0.05; roughness:0.6">
+
+</a-cylinder>
+
+<!-- banco -->
+
+<a-box
+
+width=".8"
+
+height=".18"
+
+depth=".75"
+
+position="0 .85 .5"
+
+shadow="cast:true"
+
+material="color:#232323; metalness:0; roughness:0.9">
+
+</a-box>
+
+<a-box
+
+width=".8"
+
+height=".8"
+
+depth=".12"
+
+position="0 1.3 .83"
+
+shadow="cast:true"
+
+material="color:#232323; metalness:0; roughness:0.9">
+
+</a-box>
+
+<!-- janela frontal -->
+
+<a-plane
+
+width="2.3"
+
+height="1.6"
+
+position="0 1.9 -1.23"
+
+material="color:#bfe3f5; opacity:0.28; transparent:true; metalness:0.1; roughness:0.1">
+
+</a-plane>
+
+<!-- janela esquerda -->
+
+<a-plane
+
+rotation="0 90 0"
+
+width="2"
+
+height="1.6"
+
+position="-1.27 1.8 0"
+
+material="color:#bfe3f5; opacity:0.28; transparent:true; metalness:0.1; roughness:0.1">
+
+</a-plane>
+
+<!-- janela direita -->
+
+<a-plane
+
+rotation="0 -90 0"
+
+width="2"
+
+height="1.6"
+
+position="1.27 1.8 0"
+
+material="color:#bfe3f5; opacity:0.28; transparent:true; metalness:0.1; roughness:0.1">
+
+</a-plane>
+
+<!-- ===== PAINÉIS DE FECHAMENTO (novos — cobrem os vãos abertos) ===== -->
+
+<!-- saia lateral esquerda: fecha o vão entre o piso e a base da janela -->
+<a-plane
+rotation="0 90 0"
+width="2"
+height="0.36"
+position="-1.27 0.83 0"
+shadow="cast:true; receive:true"
+material="color:#2c2c2f; metalness:0.05; roughness:0.7; side:double">
+</a-plane>
+
+<!-- saia lateral direita -->
+<a-plane
+rotation="0 -90 0"
+width="2"
+height="0.36"
+position="1.27 0.83 0"
+shadow="cast:true; receive:true"
+material="color:#2c2c2f; metalness:0.05; roughness:0.7; side:double">
+</a-plane>
+
+<!-- vidro traseiro: antes não existia nada ali, ficava um vão aberto -->
+<a-plane
+rotation="0 180 0"
+width="2.3"
+height="1.6"
+position="0 1.9 1.23"
+material="color:#bfe3f5; opacity:0.28; transparent:true; metalness:0.1; roughness:0.1; side:double">
+</a-plane>
+
+<!-- saia traseira: fecha o vão abaixo do vidro traseiro -->
+<a-plane
+rotation="0 180 0"
+width="2.3"
+height="0.55"
+position="0 0.9 1.23"
+shadow="cast:true; receive:true"
+material="color:#2c2c2f; metalness:0.05; roughness:0.7; side:double">
+</a-plane>
+
+</a-entity>
+<!-- ========================================================= -->
+<!--                  PLANTAÇÃO                               -->
+<!-- ========================================================= -->
+
+<a-entity id="plantacao"></a-entity>
+
+<script>
+
+const plantacao = document.querySelector("#plantacao");
+
+const tonsTalo = ["#5d8b32", "#6b9a3c", "#548029"];
+const tonsFolha = ["#6ea83f", "#7fbd4a", "#63a038"];
+
+/* gera centenas de pés de milho, com variação orgânica de altura e cor */
+for(let z=-80;z<80;z+=3){
+
+    for(let x=-18;x<18;x+=3){
+
+        // deixa livre a estrada
+        if(Math.abs(x)<4) continue;
+
+        const milho=document.createElement("a-entity");
+
+        milho.setAttribute("position",
+        `${x+(Math.random()*0.5)} 0 ${z}`);
+
+        const altura = 1.0 + Math.random()*0.45;
+        const folhaAltura = 0.8 + Math.random()*0.35;
+        const corTalo = tonsTalo[Math.floor(Math.random()*tonsTalo.length)];
+        const corFolha = tonsFolha[Math.floor(Math.random()*tonsFolha.length)];
+
+        milho.innerHTML=`
+
+        <a-cylinder
+        radius="0.02"
+        height="${altura}"
+        color="${corTalo}"
+        position="0 ${(altura/2).toFixed(2)} 0">
+        </a-cylinder>
+
+        <a-plane
+        width="0.28"
+        height="${folhaAltura}"
+        color="${corFolha}"
+        position="-0.06 ${(altura*0.65).toFixed(2)} 0"
+        rotation="0 20 0">
+        </a-plane>
+
+        <a-plane
+        width="0.28"
+        height="${folhaAltura}"
+        color="${corFolha}"
+        position="0.06 ${(altura*0.65).toFixed(2)} 0"
+        rotation="0 -20 0">
+        </a-plane>
+
+        `;
+
+        plantacao.appendChild(milho);
+
+    }
+
+}
+
+</script>
+
+<!-- ========================================================= -->
+<!--                  PAINEL                                  -->
+<!-- ========================================================= -->
+
+<a-entity id="painelHUD" position="0 1.28 -.76">
+
+<a-text
+id="velocidade"
+
+value="12 km/h"
+
+color="#00ff9d"
+
+width="1.8"
+
+align="center"
+
+position="0 .05 .02">
+
+</a-text>
+
+<a-text
+
+id="rpm"
+
+value="RPM 1850"
+
+color="#9dffd4"
+
+width="1.5"
+
+align="center"
+
+position="0 -.08 .02">
+
+</a-text>
+
+</a-entity>
+
+<!-- ========================================================= -->
+<!--                  SOM                                     -->
+<!-- ========================================================= -->
+
+<a-entity
+
+id="motorSom"
+
+sound="src:#motor;
+autoplay:true;
+loop:true;
+volume:0.7">
+
+</a-entity>
+
+<a-entity
+
+id="colheitaSom"
+
+sound="src:#coleta;
+autoplay:true;
+loop:true;
+volume:0.35">
+
+</a-entity>
+
+<!-- ========================================================= -->
+<!--                  MOVIMENTO                               -->
+<!-- ========================================================= -->
+
+<script>
+
+/* sensação de cabine andando */
+
+const camera=document.querySelector("#camera");
+
+let tempo=0;
+
+function moverCabine(){
+
+tempo+=0.06;
+
+camera.object3D.position.y=
+1.65+
+Math.sin(tempo)*0.015;
+
+camera.object3D.rotation.z=
+Math.sin(tempo)*0.002;
+
+requestAnimationFrame(moverCabine);
+
+}
+
+moverCabine();
+
+</script>
+
+<!-- ========================================================= -->
+<!--               VELOCIDADE                                 -->
+<!-- ========================================================= -->
+
+<script>
+
+const velocidade=document.querySelector("#velocidade");
+
+const rpm=document.querySelector("#rpm");
+
+let vel=12;
+
+let rot=1850;
+
+/* guardamos o id do intervalo pra poder cancelá-lo quando a falha começar */
+const intervaloLeituraNormal = setInterval(()=>{
+
+vel+=Math.random()*0.3-0.15;
+
+rot+=Math.random()*10-5;
+
+velocidade.setAttribute(
+"value",
+`${vel.toFixed(0)} km/h`
+);
+
+rpm.setAttribute(
+"value",
+`RPM ${rot.toFixed(0)}`
+);
+
+},250);
+
+</script>
+
+<!-- ========================================================= -->
+<!--             PAISAGEM EM MOVIMENTO                        -->
+<!-- ========================================================= -->
+
+<script>
+
+const todasPlantas=
+document.querySelectorAll("#plantacao a-entity");
+
+let maquinaLigada = true;
+
+function moverMundo(){
+
+if(maquinaLigada){
+
+    todasPlantas.forEach(planta=>{
+
+        let p=planta.object3D.position;
+
+        p.z+=0.18;
+
+        if(p.z>8){
+
+            p.z=-80;
+
+        }
+
+    });
+
+}
+
+requestAnimationFrame(moverMundo);
+
+}
+
+moverMundo();
+
+</script>
+
+<!-- ========================================================= -->
+<!--          RETROVISORES                                    -->
+<!-- ========================================================= -->
+
+<a-box
+
+width=".28"
+
+height=".16"
+
+depth=".02"
+
+material="color:#161616; metalness:0.1; roughness:0.6"
+
+position="-1.15 2.2 -.95">
+
+</a-box>
+
+<a-plane
+
+width=".24"
+
+height=".12"
+
+position="-1.15 2.2 -.93"
+
+material="color:#9fd8ff; opacity:0.55; transparent:true; metalness:0.15; roughness:0.15">
+
+</a-plane>
+
+<a-box
+
+width=".28"
+
+height=".16"
+
+depth=".02"
+
+material="color:#161616; metalness:0.1; roughness:0.6"
+
+position="1.15 2.2 -.95">
+
+</a-box>
+
+<a-plane
+
+width=".24"
+
+height=".12"
+
+position="1.15 2.2 -.93"
+
+material="color:#9fd8ff; opacity:0.55; transparent:true; metalness:0.15; roughness:0.15">
+
+</a-plane>
+
+<!-- ========================================================= -->
+<!--              ALAVANCA                                    -->
+<!-- ========================================================= -->
+
+<a-cylinder
+
+radius=".025"
+
+height=".45"
+
+material="color:#222222; metalness:0.1; roughness:0.6"
+
+position=".7 .95 -.35">
+
+</a-cylinder>
+
+<a-sphere
+
+radius=".05"
+
+material="color:#161616; metalness:0.1; roughness:0.55"
+
+position=".7 1.18 -.35">
+
+</a-sphere>
+
+<!-- ========================================================= -->
+<!--              PEDAIS                                      -->
+<!-- ========================================================= -->
+
+<a-box
+
+width=".18"
+
+height=".03"
+
+depth=".28"
+
+position="-.18 .63 -.65"
+
+material="color:#161616; metalness:0.05; roughness:0.7">
+
+</a-box>
+
+<a-box
+
+width=".18"
+
+height=".03"
+
+depth=".28"
+
+position=".18 .63 -.65"
+
+material="color:#161616; metalness:0.05; roughness:0.7">
+
+</a-box>
+
+<!-- ===================================================== -->
+<!--                 FUMAÇA                                -->
+<!-- ===================================================== -->
+
+<a-entity
+    id="fumaca"
+    position="-1.22 0.62 -1.18">
+</a-entity>
+
+<script>
+
+const fumaca=document.querySelector("#fumaca");
+
+function criarFumaca(){
+
+    for(let i=0;i<10;i++){
+
+        const p=document.createElement("a-sphere");
+
+        const raioBase = 0.05+Math.random()*0.08;
+
+        p.setAttribute("radius",raioBase);
+
+        p.setAttribute(
+        "material",
+        "color:#8a8a8a; shader:flat; opacity:0.5");
+
+        p.setAttribute(
+"position",
+"0 0 0"
+);
+
+        fumaca.appendChild(p);
+
+        subirFumaca(p, raioBase, i*80);
+
+    }
+
+}
+
+function subirFumaca(particula, raioBase, delay){
+
+    setTimeout(()=>{
+
+        let x = 0;
+        let y = 0;
+        let z = 0;
+
+        let op = 0.45;
+
+        const derivaX = (Math.random()-0.5)*0.01;
+        const derivaZ = (Math.random()-0.5)*0.01;
+
+        const intervalo = setInterval(()=>{
+
+            y += 0.028;
+
+            x += derivaX;
+
+            z += derivaZ;
+
+            op -= 0.009;
+
+            const raio = raioBase + y*0.12;
+
+            particula.setAttribute(
+                "position",
+                `${x} ${y} ${z}`
+            );
+
+            particula.setAttribute(
+                "radius",
+                raio
+            );
+
+            particula.setAttribute(
+                "material",
+                `color:#8a8a8a; shader:flat; opacity:${Math.max(op,0)}`
+            );
+
+            if(op <= 0){
+
+                clearInterval(intervalo);
+
+                particula.remove();
+
+            }
+
+        },50);
+
+    },delay);
+
+}
+
+</script>
+
+<!-- ===================================================== -->
+<!--          CLIQUE NO BOTÃO LEAK VISION                  -->
+<!-- ===================================================== -->
+
+<script>
+
+const btnClick = document.querySelector("#btnLeakClick");
+
+btnClick.addEventListener("click", () => {
+
+    document.querySelector("#fade").style.opacity = 1;
+
+    setTimeout(() => {
+
+        window.location.href = "/analise";
+
+    },900);
+
+});
+
+</script>
+
+<!-- ===================================================== -->
+<!--               FALHA DA MÁQUINA                        -->
+<!-- ===================================================== -->
+
+<audio
+
+id="falha"
+
+src="static/audio/falha.mp3">
+
+</audio>
+
+<script>
+
+let velocidadeAtual=12;
+
+let rpmAtual=1850;
+
+const velTexto=document.querySelector("#velocidade");
+
+const rpmTexto=document.querySelector("#rpm");
+
+const motor=document.querySelector("#motorSom");
+
+const colheita=document.querySelector("#colheitaSom");
+
+const btn=document.querySelector("#btnLeak");
+
+AFRAME.registerComponent("seguir-camera", {
+    tick: function () {
+
+        const camera = document.querySelector("#camera").object3D;
+
+        this.el.object3D.lookAt(camera.position);
+
+    }
+});
+
+setTimeout(()=>{
+
+/* cancela a leitura normal antes de começar a sequência de falha */
+clearInterval(intervaloLeituraNormal);
+
+const audio=document.getElementById("falha");
+
+audio.play().catch(()=>{});
+
+/* tremor mexe só em rotation.x, não briga com o moverCabine() */
+camera.setAttribute("animation__tremer",{
+
+property:"rotation.x",
+
+to:-1.2,
+
+dir:"alternate",
+
+dur:70,
+
+loop:true
+
+});
+
+let queda=setInterval(()=>{
+
+velocidadeAtual-=0.4;
+
+rpmAtual-=70;
+
+if(velocidadeAtual<0){
+
+velocidadeAtual=0;
+
+}
+
+if(rpmAtual<0){
+
+rpmAtual=0;
+
+}
+
+velTexto.setAttribute(
+
+"value",
+
+velocidadeAtual.toFixed(0)+" km/h"
+
+);
+
+rpmTexto.setAttribute(
+
+"value",
+
+"RPM "+rpmAtual.toFixed(0)
+
+);
+
+if(velocidadeAtual <= 0){
+
+    clearInterval(queda);
+
+    // A máquina para completamente
+    maquinaLigada = false;
+
+    if(motor.components.sound){
+        motor.components.sound.stopSound();
+    }
+
+    if(colheita.components.sound){
+        colheita.components.sound.stopSound();
+    }
+
+    camera.removeAttribute("animation__tremer");
+    camera.object3D.rotation.x = 0;
+
+    let intervaloFumaca;
+
+    function iniciarFumaca(){
+
+        criarFumaca();
+
+        intervaloFumaca = setInterval(()=>{
+
+            criarFumaca();
+
+        },1400);
+
+    }
+
+    // INICIA A FUMAÇA
+    iniciarFumaca();
+
+    // MOSTRA A JANELA DO LEAK VISION (com animação de entrada)
+    btn.setAttribute("visible", true);
+    btn.emit("aparecer");
+
+}
+
+},220);
+
+},14000);
+
+</script>
+
+<!-- ===================================================== -->
+<!--          TEXTURAS PROCEDURAIS (visual, não altera       -->
+<!--          nenhuma lógica acima)                          -->
+<!-- ===================================================== -->
+
+<script>
+
+// Céu em gradiente (em vez de cor chapada)
+(function aplicarCeuGradiente(){
+    const canvas = document.createElement('canvas');
+    canvas.width = 2;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    const grad = ctx.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0, '#3f7fd1');
+    grad.addColorStop(0.55, '#8fc6e8');
+    grad.addColorStop(0.82, '#e7f3ec');
+    grad.addColorStop(1, '#f4ecd8');
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 2, 512);
+
+    const ceu = document.querySelector('#ceu');
+    ceu.setAttribute('material', 'shader', 'flat');
+    ceu.setAttribute('material', 'src', canvas.toDataURL());
+})();
+
+// Grama com variação orgânica (em vez de verde chapado)
+(function aplicarTexturaGrama(){
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#7b8c42';
+    ctx.fillRect(0, 0, 256, 256);
+
+    for (let i = 0; i < 900; i++) {
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        ctx.fillStyle = Math.random() < 0.5
+            ? 'rgba(60,90,30,0.22)'
+            : 'rgba(160,180,95,0.18)';
+        ctx.fillRect(x, y, 2, 2);
+    }
+
+    const chao = document.querySelector('#chaoGrama');
+    chao.setAttribute('material', 'src', canvas.toDataURL());
+    chao.setAttribute('material', 'repeat', '40 40');
+})();
+
+// Trilha de mato/grama amassada (em vez de asfalto) — a "estrada" agora
+// é só uma faixa de vegetação mais baixa/clara, sem aparência de rua
+(function aplicarTexturaEstrada(){
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    // base verde, um pouco mais clara/amarelada que o campo ao redor
+    // (como se o mato tivesse sido amassado pela passagem da máquina)
+    ctx.fillStyle = '#7c9a49';
+    ctx.fillRect(0, 0, 128, 512);
+
+    for (let i = 0; i < 1400; i++) {
+        const x = Math.random() * 128;
+        const y = Math.random() * 512;
+        ctx.fillStyle = Math.random() < 0.5
+            ? 'rgba(60,90,30,0.25)'
+            : 'rgba(190,205,120,0.22)';
+        ctx.fillRect(x, y, 2, 2);
+    }
+
+    // trilhos bem sutis das rodas, ainda verdes, só um pouco mais escuros
+    ctx.fillStyle = 'rgba(70,95,40,0.35)';
+    ctx.fillRect(18, 0, 14, 512);
+    ctx.fillRect(96, 0, 14, 512);
+
+    const estrada = document.querySelector('#estrada');
+    estrada.setAttribute('material', 'src', canvas.toDataURL());
+    estrada.setAttribute('material', 'repeat', '2 60');
+})();
+
+</script>
+
+</a-scene>
+
+</body>
+</html>

@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width,initial-scale=1.0">
+
+<title>Análise - Lake Vision</title>
+
+<script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+
+<link rel="preconnect"
+href="https://fonts.googleapis.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700&family=Rajdhani:wght@500;700&display=swap"
+rel="stylesheet">
+
+<style>
+
+body{
+
+margin:0;
+
+overflow:hidden;
+
+background:#000;
+
+font-family:Rajdhani;
+
+}
+
+#fade{
+
+position:absolute;
+
+inset:0;
+
+background:black;
+
+opacity:0;
+
+pointer-events:none;
+
+transition:1s;
+
+z-index:99;
+
+}
+
+#hud{
+
+position:absolute;
+
+top:20px;
+
+left:50%;
+
+transform:translateX(-50%);
+
+font-family:Orbitron;
+
+color:#6dffc4;
+
+letter-spacing:4px;
+
+font-size:14px;
+
+z-index:20;
+
+text-shadow:0 0 15px #00ff9d;
+
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div id="fade"></div>
+
+<div id="hud">
+
+COLHEITA EM ANDAMENTO
+
+</div>
+
+<a-scene
+background="color:#87CEEB"
+fog="type: exponential; color: #bcd9e0; density: 0.014">
+
+<a-assets>
+
+<audio
+id="motor"
+src="static/audio/motor.mp3"
+preload="auto">
+</audio>
+
+<audio
+id="coleta"
+src="static/audio/coleta.mp3"
+preload="auto">
+</audio>
+
+</a-assets>
+
+<a-sky id="ceu" color="#87CEEB"></a-sky>
+
+<!-- morros distantes -->
+<a-cone
+    radius-bottom="70"
+    radius-top="0"
+    height="16"
+    position="-90 -8 -70"
+    material="shader:flat; color:#9fb98a; opacity:0.55; transparent:true">
+</a-cone>
+
+<a-cone
+    radius-bottom="90"
+    radius-top="0"
+    height="20"
+    position="80 -9 -95"
+    material="shader:flat; color:#8fae7c; opacity:0.5; transparent:true">
+</a-cone>
+
+<a-cone
+    radius-bottom="60"
+    radius-top="0"
+    height="14"
+    position="10 -8 -110"
+    material="shader:flat; color:#a7c093; opacity:0.45; transparent:true">
+</a-cone>
+
+<!-- sol suave no horizonte -->
+<a-circle
+    id="sol"
+    radius="6"
+    position="-25 22 -95"
+    material="shader:flat; color:#fff3cf; opacity:0.9">
+</a-circle>
+
+<a-light
+type="ambient"
+color="#fff2d9"
+intensity="0.85">
+</a-light>
+
+<a-light
+
+type="directional"
+
+color="#fff6e0"
+
+intensity="1.3"
+
+castShadow="true"
+
+position="3 10 2">
+
+</a-light>
+
+<a-light
+    type="directional"
+    color="#bcd9e8"
+    intensity="0.3"
+    position="-4 6 -4">
+</a-light>
+
+<!-- chão (grama procedural) -->
+
+<a-plane
+
+id="chaoGrama"
+
+rotation="-90 0 0"
+
+width="300"
+
+height="300"
+
+shadow="receive:true"
+
+material="color:#7b8c42; roughness:0.95; metalness:0">
+
+</a-plane>
+
+<!-- trilha de mato amassado (não é asfalto) -->
+
+<a-plane
+
+id="estrada"
+
+rotation="-90 0 0"
+
+position="0 0.02 0"
+
+width="8"
+
+height="300"
+
+shadow="receive:true"
+
+material="color:#6f8a3f; roughness:0.95; metalness:0">
+
+</a-plane>
+
+<!-- câmera + cursor de gaze -->
+
+<a-camera
+id="camera"
+position="0 1.65 0">
+
+    <a-entity
+    id="cursor"
+    cursor="fuse: true; fuseTimeout: 900"
+    raycaster="objects: .clickable; far:30"
+    position="0 0 -1"
+
+    geometry="primitive:ring;
+              radiusInner:0.007;
+              radiusOuter:0.009"
+
+    material="color:#6dffc4;
+              shader:flat;
+              opacity:0.9"
+
+    animation__fusing="
+        property:geometry.radiusOuter;
+        startEvents:fusing;
+        from:0.009;
+        to:0.026;
+        dur:900;
+        easing:linear"
+
+    animation__click="
+        property:scale;
+        startEvents:click;
+        from:1.4 1.4 1.4;
+        to:1 1 1;
+        dur:200"
+
+    animation__reset="
+        property:geometry.radiusOuter;
+        startEvents:mouseleave;
+        to:0.009;
+        dur:150">
+    </a-entity>
+
+</a-camera>
+
+<!-- ===== JANELA DE ALERTA ===== -->
+<!-- Fica fixa num ponto do mundo, na frente do banco, e usa o componente
+     "seguir-camera" (mesmo truque do cabine.html) pra sempre virar de
+     frente pra quem está olhando — bem menor que antes -->
+<a-entity
+id="painelAlerta"
+seguir-camera
+visible="false"
+position="0 1.95 -1.05"
+scale="0.75 0.75 0.75"
+
+animation__entrada="
+property: scale;
+startEvents: aparecer;
+from:0.01 0.01 0.01;
+to:0.45 0.45 0.45;
+dur:350;
+easing:easeOutBack">
+
+    <!-- brilho externo (âmbar — diferencia "conteúdo de aviso" do
+         verde de "notificação nova" do tablet) -->
+    <a-plane
+    width="3.2"
+    height="1.8"
+    position="0 0 -0.03"
+    material="color:#00ff9d; opacity:0.14; shader:flat"
+    animation="property: material.opacity; dir: alternate; loop: true; dur: 1600; to: 0.26">
+    </a-plane>
+
+    <!-- moldura -->
+    <a-plane
+    width="3"
+    height="1.55"
+    position="0 0 -0.02"
+    material="color:#0fd88f; shader:flat">
+    </a-plane>
+
+    <!-- corpo -->
+    <a-plane
+    width="2.88"
+    height="1.45"
+    position="0 0 -0.01"
+    material="color:#03170d; shader:flat">
+    </a-plane>
+
+    <!-- título + mensagem (canvas — suporta acentos, o a-text padrão não tem
+         os glifos de á, ã, ç, ê etc.) -->
+    <a-plane
+id="conteudoAlerta"
+width="2.75"
+height="1.12"
+    position="0 0.12 0"
+    material="shader:flat; transparent:true; alphaTest:0.02">
+    </a-plane>
+
+    <!-- botão fechar / avançar -->
+    <a-plane
+    id="fecharAlerta"
+    class="clickable"
+    width="1.45"
+height="0.30"
+position="0 -0.50 0.01"
+    material="color:#02160d; shader:flat"
+    animation__hoverin="property: scale; startEvents: mouseenter; to: 1.06 1.06 1.06; dur: 150"
+    animation__hoverout="property: scale; startEvents: mouseleave; to: 1 1 1; dur: 150">
+
+        <a-plane
+        width="1.55"
+        height="0.36"
+        position="0 0 -0.005"
+        material="color:#18d49d; opacity:0.95">
+        </a-plane>
+
+        <a-text
+        value="ENTENDIDO"
+        align="center"
+        width="1.6"
+        color="#ffffff"
+        position="0 0 0.01">
+        </a-text>
+
+    </a-plane>
+
+</a-entity>
+
+<!-- CABINE -->
+
+<a-entity id="cabine">
+
+<!-- piso -->
+
+<a-box
+
+width="2.7"
+
+height="0.1"
+
+depth="2.5"
+
+position="0 0.6 0"
+
+shadow="cast:true; receive:true"
+
+material="color:#3a3a3d; metalness:0.05; roughness:0.7">
+
+</a-box>
+
+<!-- teto -->
+
+<a-box
+
+width="2.7"
+
+height="0.12"
+
+depth="2.5"
+
+position="0 2.8 0"
+
+shadow="cast:true; receive:true"
+
+material="color:#2c2c2f; metalness:0.05; roughness:0.7">
+
+</a-box>
+
+<!-- coluna esquerda -->
+
+<a-box
+
+width="0.08"
+
+height="2.2"
+
+depth="0.08"
+
+position="-1.3 1.7 -1.2"
+
+shadow="cast:true"
+
+material="color:#1c1c1e; metalness:0.1; roughness:0.6">
+
+</a-box>
+
+<!-- coluna direita -->
+
+<a-box
+
+width="0.08"
+
+height="2.2"
+
+depth="0.08"
+
+position="1.3 1.7 -1.2"
+
+shadow="cast:true"
+
+material="color:#1c1c1e; metalness:0.1; roughness:0.6">
+
+</a-box>
+
+<!-- traseira esquerda -->
+
+<a-box
+
+width="0.08"
+
+height="2.2"
+
+depth="0.08"
+
+position="-1.3 1.7 1.2"
+
+shadow="cast:true"
+
+material="color:#1c1c1e; metalness:0.1; roughness:0.6">
+
+</a-box>
+
+<!-- traseira direita -->
+
+<a-box
+
+width="0.08"
+
+height="2.2"
+
+depth="0.08"
+
+position="1.3 1.7 1.2"
+
+shadow="cast:true"
+
+material="color:#1c1c1e; metalness:0.1; roughness:0.6">
+
+</a-box>
+
+<!-- painel -->
+
+<a-box
+
+width="2"
+
+height=".4"
+
+depth=".4"
+
+position="0 1.15 -1"
+
+shadow="cast:true"
+
+material="color:#232323; metalness:0.05; roughness:0.75">
+
+</a-box>
+
+<!-- painel luminoso -->
+
+<a-plane
+
+width="1.5"
+
+height=".28"
+
+position="0 1.23 -.79"
+
+material="color:#001b12; emissive:#00ff9d; emissiveIntensity:0.55; shader:standard">
+
+</a-plane>
+
+<!-- volante -->
+
+<a-torus
+
+radius="0.23"
+
+radius-tubular="0.025"
+
+rotation="70 0 0"
+
+position="0 .95 -.68"
+
+material="color:#161616; metalness:0.05; roughness:0.6">
+
+</a-torus>
+
+<a-cylinder
+
+radius=".02"
+
+height=".32"
+
+rotation="70 0 0"
+
+position="0 .95 -.68"
+
+material="color:#161616; metalness:0.05; roughness:0.6">
+
+</a-cylinder>
+
+<!-- banco -->
+
+<a-box
+
+width=".8"
+
+height=".18"
+
+depth=".75"
+
+position="0 .85 .5"
+
+shadow="cast:true"
+
+material="color:#232323; metalness:0; roughness:0.9">
+
+</a-box>
+
+<a-box
+
+width=".8"
+
+height=".8"
+
+depth=".12"
+
+position="0 1.3 .83"
+
+shadow="cast:true"
+
+material="color:#232323; metalness:0; roughness:0.9">
+
+</a-box>
+
+<!-- ===== TABLET NO PAINEL ===== -->
+<!-- corpo e tela já "de pé", olhando naturalmente pra frente (+Z, sentido
+     do motorista); só inclina o conjunto inteiro um pouco pra trás -->
+<a-entity
+    id="tablet"
+    position="0.55 1.46 -0.88"
+    rotation="-14 -10 0">
+
+    <!-- corpo/moldura do tablet -->
+    <a-box
+        width="0.32"
+        height="0.2"
+        depth="0.012"
+        material="color:#101010; metalness:0.05; roughness:0.5">
+    </a-box>
+
+    <!-- tela -->
+    <a-plane
+        id="telaTablet"
+        class="clickable"
+        width="0.28"
+        height="0.17"
+        position="0 0 0.007"
+        material="color:#050505; emissive:#00160e; emissiveIntensity:0.05; shader:standard">
+    </a-plane>
+
+</a-entity>
+
+<!-- janela frontal -->
+
+<a-plane
+
+width="2.3"
+
+height="1.6"
+
+position="0 1.9 -1.23"
+
+material="color:#bfe3f5; opacity:0.28; transparent:true; metalness:0.1; roughness:0.1">
+
+</a-plane>
+
+<!-- janela esquerda -->
+
+<a-plane
+
+rotation="0 90 0"
+
+width="2"
+
+height="1.6"
+
+position="-1.27 1.8 0"
+
+material="color:#bfe3f5; opacity:0.28; transparent:true; metalness:0.1; roughness:0.1">
+
+</a-plane>
+
+<!-- janela direita -->
+
+<a-plane
+
+rotation="0 -90 0"
+
+width="2"
+
+height="1.6"
+
+position="1.27 1.8 0"
+
+material="color:#bfe3f5; opacity:0.28; transparent:true; metalness:0.1; roughness:0.1">
+
+</a-plane>
+
+<!-- saia lateral esquerda -->
+<a-plane
+rotation="0 90 0"
+width="2"
+height="0.36"
+position="-1.27 0.83 0"
+shadow="cast:true; receive:true"
+material="color:#2c2c2f; metalness:0.05; roughness:0.7; side:double">
+</a-plane>
+
+<!-- saia lateral direita -->
+<a-plane
+rotation="0 -90 0"
+width="2"
+height="0.36"
+position="1.27 0.83 0"
+shadow="cast:true; receive:true"
+material="color:#2c2c2f; metalness:0.05; roughness:0.7; side:double">
+</a-plane>
+
+<!-- vidro traseiro -->
+<a-plane
+rotation="0 180 0"
+width="2.3"
+height="1.6"
+position="0 1.9 1.23"
+material="color:#bfe3f5; opacity:0.28; transparent:true; metalness:0.1; roughness:0.1; side:double">
+</a-plane>
+
+<!-- saia traseira -->
+<a-plane
+rotation="0 180 0"
+width="2.3"
+height="0.55"
+position="0 0.9 1.23"
+shadow="cast:true; receive:true"
+material="color:#2c2c2f; metalness:0.05; roughness:0.7; side:double">
+</a-plane>
+
+</a-entity>
+<!-- ========================================================= -->
+<!--                  PLANTAÇÃO                               -->
+<!-- ========================================================= -->
+
+<a-entity id="plantacao"></a-entity>
+
+<script>
+
+const plantacao = document.querySelector("#plantacao");
+
+const tonsTalo = ["#5d8b32", "#6b9a3c", "#548029"];
+const tonsFolha = ["#6ea83f", "#7fbd4a", "#63a038"];
+
+for(let z=-80;z<80;z+=3){
+
+    for(let x=-18;x<18;x+=3){
+
+        if(Math.abs(x)<4) continue;
+
+        const milho=document.createElement("a-entity");
+
+        milho.setAttribute("position",
+        `${x+(Math.random()*0.5)} 0 ${z}`);
+
+        const altura = 1.0 + Math.random()*0.45;
+        const folhaAltura = 0.8 + Math.random()*0.35;
+        const corTalo = tonsTalo[Math.floor(Math.random()*tonsTalo.length)];
+        const corFolha = tonsFolha[Math.floor(Math.random()*tonsFolha.length)];
+
+        milho.innerHTML=`
+
+        <a-cylinder
+        radius="0.02"
+        height="${altura}"
+        color="${corTalo}"
+        position="0 ${(altura/2).toFixed(2)} 0">
+        </a-cylinder>
+
+        <a-plane
+        width="0.28"
+        height="${folhaAltura}"
+        color="${corFolha}"
+        position="-0.06 ${(altura*0.65).toFixed(2)} 0"
+        rotation="0 20 0">
+        </a-plane>
+
+        <a-plane
+        width="0.28"
+        height="${folhaAltura}"
+        color="${corFolha}"
+        position="0.06 ${(altura*0.65).toFixed(2)} 0"
+        rotation="0 -20 0">
+        </a-plane>
+
+        `;
+
+        plantacao.appendChild(milho);
+
+    }
+
+}
+
+</script>
+
+<!-- ========================================================= -->
+<!--                  PAINEL DE VELOCIDADE                    -->
+<!-- ========================================================= -->
+
+<a-entity id="painelHUD" position="0 1.28 -.76">
+
+<a-text
+id="velocidade"
+
+value="12 km/h"
+
+color="#00ff9d"
+
+width="1.8"
+
+align="center"
+
+position="0 .05 .02">
+
+</a-text>
+
+<a-text
+
+id="rpm"
+
+value="RPM 1850"
+
+color="#9dffd4"
+
+width="1.5"
+
+align="center"
+
+position="0 -.08 .02">
+
+</a-text>
+
+</a-entity>
+
+<!-- ========================================================= -->
+<!--                  SOM                                     -->
+<!-- ========================================================= -->
+
+<a-entity
+
+id="motorSom"
+
+sound="src:#motor;
+autoplay:true;
+loop:true;
+volume:0.7">
+
+</a-entity>
+
+<a-entity
+
+id="colheitaSom"
+
+sound="src:#coleta;
+autoplay:true;
+loop:true;
+volume:0.35">
+
+</a-entity>
+
+<!-- ========================================================= -->
+<!--                  MOVIMENTO                               -->
+<!-- ========================================================= -->
+
+<script>
+
+const camera=document.querySelector("#camera");
+
+let tempo=0;
+
+function moverCabine(){
+
+tempo+=0.06;
+
+camera.object3D.position.y=
+1.65+
+Math.sin(tempo)*0.015;
+
+camera.object3D.rotation.z=
+Math.sin(tempo)*0.002;
+
+requestAnimationFrame(moverCabine);
+
+}
+
+moverCabine();
+
+</script>
+
+<!-- ========================================================= -->
+<!--               VELOCIDADE (contínua, sem falha)           -->
+<!-- ========================================================= -->
+
+<script>
+
+const velocidade=document.querySelector("#velocidade");
+
+const rpm=document.querySelector("#rpm");
+
+let vel=12;
+
+let rot=1850;
+
+setInterval(()=>{
+
+vel+=Math.random()*0.3-0.15;
+
+rot+=Math.random()*10-5;
+
+velocidade.setAttribute(
+"value",
+`${vel.toFixed(0)} km/h`
+);
+
+rpm.setAttribute(
+"value",
+`RPM ${rot.toFixed(0)}`
+);
+
+},250);
+
+</script>
+
+<!-- ========================================================= -->
+<!--             PAISAGEM EM MOVIMENTO (sempre ativa)         -->
+<!-- ========================================================= -->
+
+<script>
+
+const todasPlantas=
+document.querySelectorAll("#plantacao a-entity");
+
+function moverMundo(){
+
+todasPlantas.forEach(planta=>{
+
+let p=planta.object3D.position;
+
+p.z+=0.18;
+
+if(p.z>8){
+
+p.z=-80;
+
+}
+
+});
+
+requestAnimationFrame(moverMundo);
+
+}
+
+moverMundo();
+
+</script>
+
+<!-- ========================================================= -->
+<!--          RETROVISORES                                    -->
+<!-- ========================================================= -->
+
+<a-box
+
+width=".28"
+
+height=".16"
+
+depth=".02"
+
+material="color:#161616; metalness:0.1; roughness:0.6"
+
+position="-1.15 2.2 -.95">
+
+</a-box>
+
+<a-plane
+
+width=".24"
+
+height=".12"
+
+position="-1.15 2.2 -.93"
+
+material="color:#9fd8ff; opacity:0.55; transparent:true; metalness:0.15; roughness:0.15">
+
+</a-plane>
+
+<a-box
+
+width=".28"
+
+height=".16"
+
+depth=".02"
+
+material="color:#161616; metalness:0.1; roughness:0.6"
+
+position="1.15 2.2 -.95">
+
+</a-box>
+
+<a-plane
+
+width=".24"
+
+height=".12"
+
+position="1.15 2.2 -.93"
+
+material="color:#9fd8ff; opacity:0.55; transparent:true; metalness:0.15; roughness:0.15">
+
+</a-plane>
+
+<!-- ========================================================= -->
+<!--              ALAVANCA                                    -->
+<!-- ========================================================= -->
+
+<a-cylinder
+
+radius=".025"
+
+height=".45"
+
+material="color:#222222; metalness:0.1; roughness:0.6"
+
+position=".7 .95 -.35">
+
+</a-cylinder>
+
+<a-sphere
+
+radius=".05"
+
+material="color:#161616; metalness:0.1; roughness:0.55"
+
+position=".7 1.18 -.35">
+
+</a-sphere>
+
+<!-- ========================================================= -->
+<!--              PEDAIS                                      -->
+<!-- ========================================================= -->
+
+<a-box
+
+width=".18"
+
+height=".03"
+
+depth=".28"
+
+position="-.18 .63 -.65"
+
+material="color:#161616; metalness:0.05; roughness:0.7">
+
+</a-box>
+
+<a-box
+
+width=".18"
+
+height=".03"
+
+depth=".28"
+
+position=".18 .63 -.65"
+
+material="color:#161616; metalness:0.05; roughness:0.7">
+
+</a-box>
+
+<!-- ===================================================== -->
+<!--          LÓGICA DO TABLET / ALERTA                    -->
+<!-- ===================================================== -->
+
+<script>
+
+const tela = document.querySelector("#telaTablet");
+const painelAlerta = document.querySelector("#painelAlerta");
+const fecharAlerta = document.querySelector("#fecharAlerta");
+
+let alertaDisponivel = false;
+
+// mesmo componente usado no cabine.html: mantém a janela sempre virada
+// pra câmera, mesmo ficando parada num ponto fixo do mundo
+AFRAME.registerComponent("seguir-camera", {
+    tick: function () {
+        const cam = document.querySelector("#camera").object3D;
+
+const pos = cam.position.clone();
+
+// mantém a janela reta
+pos.y = this.el.object3D.position.y;
+
+this.el.object3D.lookAt(pos);
+    }
+});
+
+// Desenha o título + a mensagem do alerta num canvas (suporta acentos)
+// e aplica como textura na placa #conteudoAlerta
+function desenharConteudoAlerta(){
+    const canvas = document.createElement('canvas');
+    canvas.width = 1800;
+    canvas.height = 1300;
+    const ctx = canvas.getContext('2d');
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // faixa do título
+    ctx.fillStyle = 'rgba(0,255,157,0.18)';
+    ctx.fillRect(0, 0, canvas.width, 78);
+
+    ctx.fillStyle = '#9dffd4';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = "700 74px Orbitron, Arial, sans-serif";
+    ctx.fillText('ALERTA · ANÁLISE LEAK VISION', canvas.width / 2, 39);
+
+    // corpo do texto, quebrando linha automaticamente
+    const paragrafos = [
+        "• Detectamos uma anomalia no rolamento da roda dianteira esquerda. A IA estima falha total em aproximadamente 3 horas caso a operação continue.",
+        "• A equipe de manutenção foi acionada automaticamente. Tempo estimado de chegada: 30 minutos.",
+        "Recomendação da IA – Leak Vision",
+        "• Sua localização foi verificada em tempo real. Você está a 12 km da base. Recomendamos desligar a máquina em um local seguro e aguardar a equipe de manutenção.",
+    ];
+
+    ctx.fillStyle = '#eafff2';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.font = "600 54px Rajdhani, Arial, sans-serif";
+
+    const margem = 55;
+    const larguraMaxima = canvas.width - margem * 2;
+    const alturaLinha = 80;
+    let y = 212;
+
+    paragrafos.forEach(paragrafo => {
+        const palavras = paragrafo.split(' ');
+        let linha = '';
+
+        palavras.forEach(palavra => {
+            const teste = linha ? linha + ' ' + palavra : palavra;
+
+            if (ctx.measureText(teste).width > larguraMaxima) {
+                ctx.fillText(linha, margem, y);
+                linha = palavra;
+                y += alturaLinha;
+            } else {
+                linha = teste;
+            }
+        });
+
+        ctx.fillText(linha, margem, y);
+        y += alturaLinha * 1.5;
+    });
+
+    const plano = document.querySelector('#conteudoAlerta');
+    plano.setAttribute('material', 'src', canvas.toDataURL());
+}
+
+if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(desenharConteudoAlerta);
+} else {
+    desenharConteudoAlerta();
+}
+
+// depois de um tempo dirigindo normalmente, o tablet acende (nova análise)
+setTimeout(()=>{
+
+    alertaDisponivel = true;
+
+    tela.setAttribute(
+        "material",
+        "color:#00160e; emissive:#00ff9d; emissiveIntensity:0.9; shader:standard"
+    );
+
+    tela.setAttribute("animation__piscar", {
+        property: "material.emissiveIntensity",
+        dir: "alternate",
+        loop: true,
+        dur: 700,
+        to: 0.35
+    });
+
+},9000);
+
+tela.addEventListener("click", ()=>{
+
+    if(!alertaDisponivel) return;
+
+    const abrindo = painelAlerta.getAttribute("visible") !== true;
+
+    if(abrindo){
+
+        painelAlerta.setAttribute("visible", true);
+        painelAlerta.emit("aparecer");
+
+        // primeira vez que abre: tela para de piscar e fica em verde fixo
+        // (como um "lido")
+        tela.removeAttribute("animation__piscar");
+        tela.setAttribute(
+            "material",
+            "color:#00160e; emissive:#00ff9d; emissiveIntensity:0.35; shader:standard"
+        );
+
+    } else {
+
+        painelAlerta.setAttribute("visible", false);
+
+    }
+
+});
+
+fecharAlerta.addEventListener("click", ()=>{
+
+    painelAlerta.setAttribute("visible", false);
+
+});
+
+</script>
+
+<!-- ===================================================== -->
+<!--          TEXTURAS PROCEDURAIS (visual)                -->
+<!-- ===================================================== -->
+
+<script>
+
+(function aplicarCeuGradiente(){
+    const canvas = document.createElement('canvas');
+    canvas.width = 2;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    const grad = ctx.createLinearGradient(0, 0, 0, 512);
+    grad.addColorStop(0, '#3f7fd1');
+    grad.addColorStop(0.55, '#8fc6e8');
+    grad.addColorStop(0.82, '#e7f3ec');
+    grad.addColorStop(1, '#f4ecd8');
+
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 2, 512);
+
+    const ceu = document.querySelector('#ceu');
+    ceu.setAttribute('material', 'shader', 'flat');
+    ceu.setAttribute('material', 'src', canvas.toDataURL());
+})();
+
+(function aplicarTexturaGrama(){
+    const canvas = document.createElement('canvas');
+    canvas.width = 256;
+    canvas.height = 256;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#7b8c42';
+    ctx.fillRect(0, 0, 256, 256);
+
+    for (let i = 0; i < 900; i++) {
+        const x = Math.random() * 256;
+        const y = Math.random() * 256;
+        ctx.fillStyle = Math.random() < 0.5
+            ? 'rgba(60,90,30,0.22)'
+            : 'rgba(160,180,95,0.18)';
+        ctx.fillRect(x, y, 2, 2);
+    }
+
+    const chao = document.querySelector('#chaoGrama');
+    chao.setAttribute('material', 'src', canvas.toDataURL());
+    chao.setAttribute('material', 'repeat', '40 40');
+})();
+
+(function aplicarTexturaEstrada(){
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#7c9a49';
+    ctx.fillRect(0, 0, 128, 512);
+
+    for (let i = 0; i < 1400; i++) {
+        const x = Math.random() * 128;
+        const y = Math.random() * 512;
+        ctx.fillStyle = Math.random() < 0.5
+            ? 'rgba(60,90,30,0.25)'
+            : 'rgba(190,205,120,0.22)';
+        ctx.fillRect(x, y, 2, 2);
+    }
+
+    ctx.fillStyle = 'rgba(70,95,40,0.35)';
+    ctx.fillRect(18, 0, 14, 512);
+    ctx.fillRect(96, 0, 14, 512);
+
+    const estrada = document.querySelector('#estrada');
+    estrada.setAttribute('material', 'src', canvas.toDataURL());
+    estrada.setAttribute('material', 'repeat', '2 60');
+})();
+
+</script>
+
+</a-scene>
+
+</body>
+</html>
