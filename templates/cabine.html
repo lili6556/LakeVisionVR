@@ -82,6 +82,62 @@ text-shadow:0 0 15px #00ff9d;
 
 <div id="fade"></div>
 
+<!-- ===================================================== -->
+<!--     DESBLOQUEIO DE ÁUDIO EM NAVEGADORES MOBILE        -->
+<!-- ===================================================== -->
+<script>
+
+// A maioria dos navegadores mobile (principalmente Safari no iOS, mas
+// o Chrome no Android também) bloqueia qualquer reprodução de áudio
+// NESTA página até o usuário tocar na tela aqui, mesmo com "autoplay".
+// Isso vale pra cada página nova — a permissão de um clique em uma
+// página anterior (ex: o botão do cabine.html) não é herdada depois
+// de um window.location.href. Por isso o som toca no PC (mais
+// permissivo) mas fica mudo no celular até haver um toque real aqui.
+function desbloquearAudio(){
+
+    // Retoma o AudioContext usado pelo A-Frame/Three.js, que em mobile
+    // começa "suspenso" até haver uma interação real do usuário.
+    if (window.THREE && THREE.AudioContext) {
+        const ctx = THREE.AudioContext.getContext();
+        if (ctx.state === "suspended") {
+            ctx.resume();
+        }
+    }
+
+    // Reinicia os sons definidos com o componente "sound" do A-Frame
+    // que já deveriam estar tocando (autoplay:true)
+    document.querySelectorAll("[sound]").forEach(el => {
+        if (el.components && el.components.sound) {
+            el.components.sound.playSound();
+        }
+    });
+
+    // Tags <audio> "cruas" (como a de falha do motor) também precisam
+    // desse mesmo empurrão — toca mudo e pausa só pra "destravar"
+    document.querySelectorAll("audio").forEach(audio => {
+        const estavaMudo = audio.muted;
+        audio.muted = true;
+        audio.play().then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = estavaMudo;
+        }).catch(() => {
+            audio.muted = estavaMudo;
+        });
+    });
+
+    document.removeEventListener("touchend", desbloquearAudio);
+    document.removeEventListener("click", desbloquearAudio);
+    document.removeEventListener("mousedown", desbloquearAudio);
+}
+
+document.addEventListener("touchend", desbloquearAudio, { once: true, passive: true });
+document.addEventListener("click", desbloquearAudio, { once: true });
+document.addEventListener("mousedown", desbloquearAudio, { once: true });
+
+</script>
+
 <div id="hud">
 
 COLHEITA EM ANDAMENTO
@@ -100,6 +156,11 @@ src="static/audio/motor.mp3"
 preload="auto">
 </audio>
 
+<audio
+id="coleta"
+src="static/audio/coleta.mp3"
+preload="auto">
+</audio>
 
 </a-assets>
 
@@ -309,7 +370,6 @@ easing: easeOutBack">
 
     <a-plane
 id="btnLeakClick"
-class="clickable"
 width="2.45"
 height="0.42"
 position="0 -0.22 0.05"
@@ -1085,14 +1145,19 @@ function subirFumaca(particula, raioBase, delay){
 <script>
 
 const btnClick = document.querySelector("#btnLeakClick");
+const btnLeakEntidade = document.querySelector("#btnLeak");
 
 btnClick.addEventListener("click", () => {
+
+    // Segurança extra: ignora qualquer clique caso o botão ainda não
+    // esteja de fato visível (evita navegação acidental).
+    if (btnLeakEntidade.getAttribute("visible") !== true) return;
 
     document.querySelector("#fade").style.opacity = 1;
 
     setTimeout(() => {
 
-        window.location.href = "/analise";
+        window.location.href = "/intro";
 
     },900);
 
@@ -1233,6 +1298,24 @@ if(velocidadeAtual <= 0){
 
     // MOSTRA A JANELA DO LEAK VISION (com animação de entrada)
     btn.setAttribute("visible", true);
+
+    // O raycaster do cursor procura por elementos com a classe
+    // "clickable" desde o carregamento da cena. Se essa classe já
+    // estivesse no HTML, o cursor conseguiria "mirar" e completar o
+    // fuse no botão mesmo com ele invisível (o "visible" do A-Frame
+    // afeta a renderização, não necessariamente o raycast) — e o
+    // clique disparava sozinho antes do botão aparecer de verdade.
+    // Por isso só adicionamos a classe agora, no momento exato em
+    // que o botão fica visível.
+    btnClick.classList.add("clickable");
+
+    // Força o raycaster a reconhecer o novo elemento .clickable
+    // imediatamente, em vez de esperar o próximo refresh automático.
+    const cursor = document.querySelector("#cursor");
+    if (cursor && cursor.components && cursor.components.raycaster) {
+        cursor.components.raycaster.refreshObjects();
+    }
+
     btn.emit("aparecer");
 
 }
