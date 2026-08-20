@@ -1,1 +1,777 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
 
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leak Vision - Introdução</title>
+
+    <script src="https://aframe.io/releases/1.7.1/aframe.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --neon: #00ff9d;
+            --neon-strong: #6dffc4;
+            --bg-deep: #010402;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Rajdhani', Arial, Helvetica, sans-serif;
+            background: var(--bg-deep);
+        }
+
+        /* ---------- TELA DE LOADING ---------- */
+        #loading {
+            position: absolute;
+            inset: 0;
+            background:
+                radial-gradient(circle at 50% 40%, rgba(0,255,157,0.10), transparent 60%),
+                var(--bg-deep);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 18px;
+            color: var(--neon-strong);
+            z-index: 999;
+            transition: opacity 1s;
+        }
+
+        #loading .ring {
+            width: 78px;
+            height: 78px;
+            border-radius: 50%;
+            border: 2px solid rgba(0,255,157,0.15);
+            border-top: 2px solid var(--neon-strong);
+            border-right: 2px solid var(--neon-strong);
+            box-shadow: 0 0 18px rgba(0,255,157,0.55);
+            animation: spin 1.1s linear infinite;
+        }
+
+        #loading .label {
+            font-family: 'Orbitron', sans-serif;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 4px;
+            text-transform: uppercase;
+            color: var(--neon-strong);
+            text-shadow: 0 0 10px rgba(0,255,157,0.8), 0 0 22px rgba(0,255,157,0.4);
+        }
+
+        #loading .sub {
+            font-size: 12px;
+            letter-spacing: 2px;
+            color: rgba(109,255,196,0.45);
+            text-transform: uppercase;
+        }
+
+        #loading .bar {
+            width: 220px;
+            height: 3px;
+            background: rgba(0,255,157,0.15);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 4px;
+        }
+
+        #loading .bar-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--neon-strong);
+            box-shadow: 0 0 8px var(--neon-strong);
+            transition: width 1.35s linear;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* ---------- FADE DE TRANSIÇÃO ---------- */
+        #fade {
+            position: absolute;
+            inset: 0;
+            background: var(--bg-deep);
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity .8s;
+            z-index: 900;
+        }
+
+        /* ---------- OVERLAYS DECORATIVOS (HUD) ---------- */
+        #hud-frame {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 500;
+        }
+
+        #hud-frame::before,
+        #hud-frame::after {
+            content: "";
+            position: absolute;
+            width: 34px;
+            height: 34px;
+            border: 2px solid rgba(0,255,157,0.55);
+        }
+
+        #hud-frame::before {
+            top: 18px;
+            left: 18px;
+            border-right: none;
+            border-bottom: none;
+        }
+
+        #hud-frame::after {
+            bottom: 18px;
+            right: 18px;
+            border-left: none;
+            border-top: none;
+        }
+
+        #hud-corner-tr {
+            position: absolute;
+            top: 18px;
+            right: 18px;
+            width: 34px;
+            height: 34px;
+            border: 2px solid rgba(0,255,157,0.55);
+            border-left: none;
+            border-bottom: none;
+            pointer-events: none;
+            z-index: 500;
+        }
+
+        #hud-corner-bl {
+            position: absolute;
+            bottom: 18px;
+            left: 18px;
+            width: 34px;
+            height: 34px;
+            border: 2px solid rgba(0,255,157,0.55);
+            border-right: none;
+            border-top: none;
+            pointer-events: none;
+            z-index: 500;
+        }
+
+        #scanlines {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 400;
+            background: repeating-linear-gradient(
+                to bottom,
+                rgba(0,255,157,0.035) 0px,
+                rgba(0,255,157,0.035) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            mix-blend-mode: screen;
+            opacity: 0.5;
+        }
+
+        #vignette {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 401;
+            background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.75) 100%);
+        }
+
+        /* ---------- BOTÃO NATIVO DE ENTRAR EM VR (A-Frame) ---------- */
+        .a-enter-vr {
+            bottom: 24px !important;
+            right: 24px !important;
+        }
+
+        .a-enter-vr-button {
+            background-color: rgba(1,4,2,0.8) !important;
+            border: 2px solid var(--neon) !important;
+            border-radius: 10px !important;
+            box-shadow: 0 0 14px rgba(0,255,157,0.65) !important;
+        }
+    </style>
+</head>
+
+<body>
+
+<div id="loading">
+    <div class="ring"></div>
+    <div class="label">Compilando relatório</div>
+    <div class="sub">Lake Vision · Sistema Leak Vision</div>
+    <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+</div>
+
+<div id="scanlines"></div>
+<div id="vignette"></div>
+<div id="hud-frame"></div>
+<div id="hud-corner-tr"></div>
+<div id="hud-corner-bl"></div>
+
+<div id="fade"></div>
+
+<a-scene background="color:#010402" fog="type: exponential; color: #010402; density: 0.045">
+
+    <!-- Texturas geradas em runtime (grade neon do chão, texto da mensagem e do botão) -->
+    <a-assets>
+        <canvas id="grid-canvas"></canvas>
+        <canvas id="mensagem-canvas" width="1600" height="220"></canvas>
+        <canvas id="botao-canvas" width="900" height="200"></canvas>
+
+        <img
+            id="logo-asset"
+            src="{{ url_for('static', filename='logo.png') }}">
+    </a-assets>
+
+    <!-- Luz ambiente fria -->
+    <a-light type="ambient" color="#0a3d24" intensity="0.55"></a-light>
+
+    <!-- Luz principal verde neon (com leve respiração) -->
+    <a-light
+        type="point"
+        color="#00ff9d"
+        position="0 4 -3"
+        distance="20"
+        intensity="2"
+        animation="property:intensity; dir:alternate; loop:true; to:3; dur:2200">
+    </a-light>
+
+    <!-- Luz de contorno para profundidade (verde mais escuro, sutil) -->
+    <a-light
+        type="point"
+        color="#0aff6a"
+        intensity="0.9"
+        distance="18"
+        position="0 2 4">
+    </a-light>
+
+    <!-- Chão com grade neon -->
+    <a-plane
+    id="chao"
+    width="60"
+    height="60"
+    rotation="-90 0 0"
+    position="0 -0.35 0"
+        material="color:#020617; metalness:0.3; roughness:0.6; emissive:#0a2e1c; emissiveIntensity:0.4"
+        shadow="receive:true">
+    </a-plane>
+
+    <!-- Anel neon no chão sob o jogador -->
+    <a-ring
+        color="#00ff9d"
+        radius-inner="2.6"
+        radius-outer="2.75"
+        rotation="-90 0 0"
+        position="0 0.01 -1"
+        material="shader:flat; opacity:0.55"
+        animation="property: rotation; to: -90 360 0; loop: true; dur: 20000; easing: linear">
+    </a-ring>
+
+    <!-- Céu / horizonte -->
+    <a-sky color="#010402"></a-sky>
+
+    <a-sphere
+
+radius="60"
+
+side="back"
+
+material="
+shader:flat;
+color:#00140d;
+opacity:0.08"
+
+animation="
+property:rotation;
+to:0 360 0;
+loop:true;
+dur:180000">
+
+</a-sphere>
+
+    <!-- Horizonte com brilho neon sutil -->
+    <a-cylinder
+    radius="39"
+    height="12"
+    position="0 5.6 0"
+        open-ended="true"
+        side="back"
+        material="shader:flat; color:#042013; opacity:0.5; transparent:true">
+    </a-cylinder>
+
+    <!-- ====== ÁREA DA LOGO ====== -->
+    <a-entity position="0 3.5 -5.5">
+
+        <a-ring
+            color="#00ff9d"
+            radius-inner="1.5"
+            radius-outer="1.57"
+            material="shader:flat; opacity:0.6"
+            animation="property: rotation; to: 0 0 360; loop: true; dur: 18000; easing: linear">
+        </a-ring>
+
+        <a-ring
+            color="#6dffc4"
+            radius-inner="1.63"
+            radius-outer="1.65"
+            material="shader:flat; opacity:0.25"
+            animation="property: rotation; to: 0 0 -360; loop: true; dur: 26000; easing: linear">
+        </a-ring>
+
+<a-ring
+    color="#00ff9d"
+    radius-inner="1.85"
+    radius-outer="1.88"
+    material="shader:flat; opacity:0.15"
+    animation="
+        property:rotation;
+        to:0 0 360;
+        loop:true;
+        dur:6000">
+</a-ring>
+
+
+        <a-circle
+    radius="1.45"
+    position="0 0 -0.02"
+    color="#00ff9d"
+    material="shader:flat;
+              opacity:0.18"
+    animation="
+        property:scale;
+        dir:alternate;
+        to:1.12 1.12 1;
+        dur:2200;
+        loop:true">
+</a-circle>
+
+        <a-circle
+    radius="1.15"
+    src="#logo-asset"
+    material="
+        transparent:true;
+        alphaTest:0.05;
+        shader:flat">
+</a-circle>
+
+    </a-entity>
+
+    <!-- Texto principal (canvas reaproveitado — sem flash branco, com acentos) -->
+    <a-plane
+        id="mensagem"
+        width="8"
+        height="1.1"
+        position="0 1.7 -4.6"
+        material="shader:flat; src:#mensagem-canvas; transparent:true; alphaTest:0.02">
+    </a-plane>
+
+    <!-- Indicador de progresso: 1 ponto por mensagem -->
+    <a-entity position="0 1.05 -4.3">
+        <a-circle id="ponto-0" radius="0.045" position="-0.3 0 0" material="color:#0d3a2a; opacity:0.5; shader:flat"></a-circle>
+        <a-circle id="ponto-1" radius="0.045" position="-0.1 0 0" material="color:#0d3a2a; opacity:0.5; shader:flat"></a-circle>
+        <a-circle id="ponto-2" radius="0.045" position="0.1 0 0" material="color:#0d3a2a; opacity:0.5; shader:flat"></a-circle>
+        <a-circle id="ponto-3" radius="0.045" position="0.3 0 0" material="color:#0d3a2a; opacity:0.5; shader:flat"></a-circle>
+    </a-entity>
+
+    <!-- ===== BOTÃO ===== -->
+<a-entity
+    id="botao"
+    visible="false"
+    position="0 0.55 -4.3"
+    scale="0.82 0.82 0.82"
+
+
+    animation__hoverin="
+        property:scale;
+        startEvents:mouseenter;
+        to:1.06 1.06 1.06;
+        dur:180"
+
+    animation__hoverout="
+        property:scale;
+        startEvents:mouseleave;
+        to:1 1 1;
+        dur:180">
+
+    <!-- Glow -->
+    <a-plane
+        width="3.5"
+        height="1.15"
+        position="0 0 -0.05"
+        color="#00ff9d"
+        material="shader:flat; opacity:0.10"
+
+        animation="
+            property:material.opacity;
+            dir:alternate;
+            loop:true;
+            dur:1500;
+            to:0.25">
+    </a-plane>
+
+    <!-- Borda -->
+    <a-plane
+        width="3.05"
+        height="0.80"
+        color="#00ff9d"
+        position="0 0 -0.02"
+        material="shader:flat">
+    </a-plane>
+
+    <!-- Fundo (a classe "clickable" é adicionada via JS só quando o botão aparece de verdade) -->
+    <a-plane
+        id="botao-fundo"
+        width="2.96"
+        height="0.71"
+        color="#02130b"
+        position="0 0 -0.01"
+        material="shader:flat">
+    </a-plane>
+
+    <!-- Linha brilhante -->
+    <a-plane
+        width="0.22"
+        height="0.72"
+        color="#ffffff"
+        rotation="0 0 15"
+        position="-1.55 0 -0.015"
+
+        material="shader:flat; opacity:0.18"
+
+        animation="
+            property:position;
+            from:-1.55 0 0;
+            to:1.55 0 -0.015;
+            loop:true;
+            dur:2200">
+    </a-plane>
+
+    <!-- Canto superior esquerdo -->
+<a-plane width="0.18" height="0.02"
+color="#6dffc4"
+position="-1.35 0.33 0.02"></a-plane>
+
+<a-plane width="0.02" height="0.18"
+color="#6dffc4"
+position="-1.43 0.25 0.02"></a-plane>
+
+<!-- Canto superior direito -->
+<a-plane width="0.18" height="0.02"
+color="#6dffc4"
+position="1.35 0.33 0.02"></a-plane>
+
+<a-plane width="0.02" height="0.18"
+color="#6dffc4"
+position="1.43 0.25 0.02"></a-plane>
+
+<!-- Canto inferior esquerdo -->
+<a-plane width="0.18" height="0.02"
+color="#6dffc4"
+position="-1.35 -0.33 0.02"></a-plane>
+
+<a-plane width="0.02" height="0.18"
+color="#6dffc4"
+position="-1.43 -0.25 0.02"></a-plane>
+
+<!-- Canto inferior direito -->
+<a-plane width="0.18" height="0.02"
+color="#6dffc4"
+position="1.35 -0.33 0.02"></a-plane>
+
+<a-plane width="0.02" height="0.18"
+color="#6dffc4"
+position="1.43 -0.25 0.02"></a-plane>
+
+    <!-- Texto do botão (canvas — suporta acentos, sem flash pois desenha uma única vez) -->
+    <a-plane
+        id="botao-texto"
+        width="2.5"
+        height="0.5"
+        position="0.15 -0.03 0.05"
+        material="shader:flat; src:#botao-canvas; transparent:true; alphaTest:0.02">
+    </a-plane>
+
+</a-entity>
+
+    <!-- Partículas flutuantes decorativas -->
+    <a-entity id="starfield"></a-entity>
+
+    <!-- Câmera + cursor de gaze -->
+    <a-camera position="0 1.6 0">
+
+        <a-entity
+            id="cursor-gaze"
+            cursor="fuse: true; fuseTimeout: 1200"
+            raycaster="objects: .clickable; far: 30"
+            position="0 0 -1"
+            geometry="primitive: ring; radiusInner: 0.007; radiusOuter: 0.009"
+            material="color: #6dffc4; shader: flat; opacity: 0.9"
+            animation__fusing="property: geometry.radiusOuter; startEvents: fusing; from: 0.009; to: 0.026; dur: 1200; easing: linear"
+            animation__click="property: scale; startEvents: click; from: 1.4 1.4 1.4; to: 1 1 1; dur: 200"
+            animation__reset="property: geometry.radiusOuter; startEvents: mouseleave; to: 0.009; dur: 150">
+        </a-entity>
+
+    </a-camera>
+
+</a-scene>
+
+<script>
+
+// Mensagens explicando o produto Leak Vision, no mesmo estilo de
+// digitação letra por letra do index.html
+const mensagens = [
+
+"Isso foi o Leak Vision entrando em ação.",
+
+"Nosso sistema de IA monitora sua máquina em tempo real.",
+
+"Ele identifica falhas antes que virem prejuízo ou parada total.",
+
+"A seguir, veja a análise completa do que foi detectado."
+
+];
+
+const botao = document.querySelector("#botao");
+
+let fraseAtual = 0;
+let letraAtual = 0;
+
+window.onload = () => {
+
+    requestAnimationFrame(() => {
+        const barra = document.querySelector("#bar-fill");
+        if (barra) barra.style.width = "100%";
+    });
+
+    setTimeout(() => {
+
+        document.querySelector("#loading").style.opacity = "0";
+
+        setTimeout(() => {
+
+            document.querySelector("#loading").style.display = "none";
+
+            escreverMensagem();
+
+        },1000);
+
+    },1500);
+
+}
+
+function escreverMensagem(){
+
+    if(letraAtual === 0){
+        atualizarPontos(fraseAtual);
+    }
+
+    const frase = [...mensagens[fraseAtual]];
+
+    desenharTextoMensagem(frase.slice(0, letraAtual).join(""));
+
+    letraAtual++;
+
+    if(letraAtual <= frase.length){
+
+        setTimeout(escreverMensagem,40);
+
+    }else{
+
+        fraseAtual++;
+        letraAtual=0;
+
+        if(fraseAtual<mensagens.length){
+
+            setTimeout(escreverMensagem,1800);
+
+        }else{
+
+            mostrarBotao();
+
+        }
+
+    }
+
+}
+
+// Mesmo raciocínio aplicado no cabine.html e no analise.html: o three.js
+// raycasta objetos mesmo quando um ancestral está com visible=false (o
+// "visible" do A-Frame só afeta a renderização, não o raycast). Por isso
+// o botão só ganha a classe .clickable (usada pelo seletor do raycaster)
+// no exato momento em que ele fica visível — nunca antes.
+function mostrarBotao(){
+
+    botao.setAttribute("visible", true);
+
+    const fundo = document.querySelector("#botao-fundo");
+    fundo.classList.add("clickable");
+
+    // Força o raycaster a reconhecer o novo elemento .clickable
+    // imediatamente, em vez de esperar o próximo refresh automático.
+    const cursor = document.querySelector("#cursor-gaze");
+    if (cursor && cursor.components && cursor.components.raycaster) {
+        cursor.components.raycaster.refreshObjects();
+    }
+
+}
+
+botao.addEventListener("click",()=>{
+
+    // Segurança extra: ignora qualquer clique caso o botão ainda não
+    // esteja de fato visível (evita navegação acidental).
+    if (botao.getAttribute("visible") !== true) return;
+
+    document.querySelector("#fade").style.opacity="1";
+
+    setTimeout(()=>{
+
+        window.location.href="/analise";
+
+    },800);
+
+});
+
+/* ---------- Decoração visual (não interfere na lógica acima) ---------- */
+
+const canvasMensagem = document.querySelector('#mensagem-canvas');
+const ctxMensagem = canvasMensagem.getContext('2d');
+
+function desenharTextoMensagem(str){
+    ctxMensagem.clearRect(0, 0, canvasMensagem.width, canvasMensagem.height);
+
+    ctxMensagem.fillStyle = '#e8fff2';
+    ctxMensagem.textAlign = 'center';
+    ctxMensagem.textBaseline = 'middle';
+
+    let tamanho = 74;
+    do {
+        ctxMensagem.font = `600 ${tamanho}px Rajdhani, Arial, sans-serif`;
+        tamanho -= 2;
+    } while (ctxMensagem.measureText(str).width > canvasMensagem.width - 100 && tamanho > 24);
+
+    ctxMensagem.fillText(str, canvasMensagem.width / 2, canvasMensagem.height / 2);
+
+    atualizarTextura('#mensagem');
+}
+
+function desenharTextoBotao(){
+    const canvas = document.querySelector('#botao-canvas');
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = "700 76px Rajdhani, Arial, sans-serif";
+    ctx.fillText('VER ANÁLISE COMPLETA', canvas.width / 2, canvas.height / 2);
+
+    atualizarTextura('#botao-texto');
+}
+
+function atualizarTextura(seletor){
+    const entidade = document.querySelector(seletor);
+    if (!entidade || !entidade.components || !entidade.components.material) return;
+
+    const mat = entidade.components.material.material;
+    if (mat && mat.map) {
+        mat.map.needsUpdate = true;
+    }
+}
+
+if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(desenharTextoBotao);
+} else {
+    desenharTextoBotao();
+}
+
+function atualizarPontos(indexAtivo){
+    for(let i=0;i<4;i++){
+        const ponto = document.querySelector('#ponto-'+i);
+        if(!ponto) continue;
+
+        if(i === indexAtivo){
+            ponto.setAttribute('material','color:#6dffc4; opacity:1; shader:flat');
+            ponto.setAttribute('scale','1.35 1.35 1.35');
+        } else if(i < indexAtivo){
+            ponto.setAttribute('material','color:#00ff9d; opacity:0.6; shader:flat');
+            ponto.setAttribute('scale','1 1 1');
+        } else {
+            ponto.setAttribute('material','color:#0d3a2a; opacity:0.5; shader:flat');
+            ponto.setAttribute('scale','1 1 1');
+        }
+    }
+}
+
+(function aplicarGradeNeon(){
+    const canvas = document.querySelector('#grid-canvas');
+    canvas.width = 512;
+    canvas.height = 512;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = '#020617';
+    ctx.fillRect(0, 0, 512, 512);
+
+    ctx.strokeStyle = 'rgba(0,255,157,0.55)';
+    ctx.lineWidth = 2;
+    const step = 32;
+    for (let i = 0; i <= 512; i += step) {
+        ctx.beginPath();
+        ctx.moveTo(i, 0);
+        ctx.lineTo(i, 512);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0, i);
+        ctx.lineTo(512, i);
+        ctx.stroke();
+    }
+
+    ctx.strokeStyle = 'rgba(109,255,196,0.9)';
+    ctx.lineWidth = 3;
+    ctx.strokeRect(0, 0, 512, 512);
+
+    const chao = document.querySelector('#chao');
+    chao.setAttribute('material', 'src', canvas.toDataURL());
+    chao.setAttribute('material', 'repeat', '10 10');
+})();
+
+(function criarStarfield(){
+    const container = document.querySelector('#starfield');
+    const total = 60;
+
+    for (let i = 0; i < total; i++) {
+        const x = (Math.random() - 0.5) * 36;
+        const y = Math.random() * 8 + 0.5;
+        const z = (Math.random() - 0.5) * 36;
+        const size = Math.random() * 0.035 + 0.015;
+
+        const p = document.createElement('a-entity');
+        p.setAttribute('geometry', `primitive: sphere; radius: ${size}`);
+        p.setAttribute('material', 'shader: flat; color: #6dffc4; opacity: ' + (Math.random() * 0.5 + 0.3));
+        p.setAttribute('position', `${x} ${y} ${z}`);
+        p.setAttribute('animation', {
+            property: 'position',
+            dir: 'alternate',
+            dur: 3000 + Math.random() * 4000,
+            loop: true,
+            to: `${x} ${y + 0.4} ${z}`,
+            easing: 'easeInOutSine'
+        });
+
+        container.appendChild(p);
+    }
+})();
+
+</script>
+
+</body>
+
+</html>
