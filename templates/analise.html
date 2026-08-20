@@ -82,6 +82,62 @@ text-shadow:0 0 15px #00ff9d;
 
 <div id="fade"></div>
 
+<!-- ===================================================== -->
+<!--     DESBLOQUEIO DE ÁUDIO EM NAVEGADORES MOBILE        -->
+<!-- ===================================================== -->
+<script>
+
+// A maioria dos navegadores mobile (principalmente Safari no iOS, mas
+// o Chrome no Android também) bloqueia qualquer reprodução de áudio
+// NESTA página até o usuário tocar na tela aqui, mesmo com "autoplay".
+// Isso vale pra cada página nova — a permissão de um clique em uma
+// página anterior não é herdada depois de um window.location.href.
+// Por isso o som toca no PC (mais permissivo) mas fica mudo no
+// celular até haver um toque real aqui.
+function desbloquearAudio(){
+
+    // Retoma o AudioContext usado pelo A-Frame/Three.js, que em mobile
+    // começa "suspenso" até haver uma interação real do usuário.
+    if (window.THREE && THREE.AudioContext) {
+        const ctx = THREE.AudioContext.getContext();
+        if (ctx.state === "suspended") {
+            ctx.resume();
+        }
+    }
+
+    // Reinicia os sons definidos com o componente "sound" do A-Frame
+    // que já deveriam estar tocando (autoplay:true)
+    document.querySelectorAll("[sound]").forEach(el => {
+        if (el.components && el.components.sound) {
+            el.components.sound.playSound();
+        }
+    });
+
+    // Tags <audio> "cruas" também precisam desse mesmo empurrão —
+    // toca mudo e pausa só pra "destravar"
+    document.querySelectorAll("audio").forEach(audio => {
+        const estavaMudo = audio.muted;
+        audio.muted = true;
+        audio.play().then(() => {
+            audio.pause();
+            audio.currentTime = 0;
+            audio.muted = estavaMudo;
+        }).catch(() => {
+            audio.muted = estavaMudo;
+        });
+    });
+
+    document.removeEventListener("touchend", desbloquearAudio);
+    document.removeEventListener("click", desbloquearAudio);
+    document.removeEventListener("mousedown", desbloquearAudio);
+}
+
+document.addEventListener("touchend", desbloquearAudio, { once: true, passive: true });
+document.addEventListener("click", desbloquearAudio, { once: true });
+document.addEventListener("mousedown", desbloquearAudio, { once: true });
+
+</script>
+
 <div id="hud">
 
 COLHEITA EM ANDAMENTO
@@ -100,6 +156,11 @@ src="static/audio/motor.mp3"
 preload="auto">
 </audio>
 
+<audio
+id="coleta"
+src="static/audio/coleta.mp3"
+preload="auto">
+</audio>
 
 </a-assets>
 
@@ -269,8 +330,8 @@ easing:easeOutBack">
     <!-- brilho externo (âmbar — diferencia "conteúdo de aviso" do
          verde de "notificação nova" do tablet) -->
     <a-plane
-    width="3.2"
-    height="1.8"
+    width="4.5"
+    height="4.0"
     position="0 0 -0.03"
     material="color:#00ff9d; opacity:0.14; shader:flat"
     animation="property: material.opacity; dir: alternate; loop: true; dur: 1600; to: 0.26">
@@ -278,44 +339,49 @@ easing:easeOutBack">
 
     <!-- moldura -->
     <a-plane
-    width="3"
-    height="1.55"
+    width="4.3"
+    height="3.75"
     position="0 0 -0.02"
     material="color:#0fd88f; shader:flat">
     </a-plane>
 
     <!-- corpo -->
     <a-plane
-    width="2.88"
-    height="1.45"
+    width="4.15"
+    height="3.6"
     position="0 0 -0.01"
     material="color:#03170d; shader:flat">
     </a-plane>
 
     <!-- título + mensagem (canvas — suporta acentos, o a-text padrão não tem
-         os glifos de á, ã, ç, ê etc.) -->
+         os glifos de á, ã, ç, ê etc.). A proporção (3.6 x 2.6) foi ajustada
+         para casar com a proporção do canvas (1800 x 1300 = mesma razão
+         1,38), evitando o texto "achatado"/espremido que ficava difícil
+         de ler antes, quando a placa era bem mais larga que alta em
+         relação ao canvas. -->
     <a-plane
 id="conteudoAlerta"
-width="2.75"
-height="1.12"
-    position="0 0.12 0"
+width="3.6"
+height="2.6"
+    position="0 0.25 0"
     material="shader:flat; transparent:true; alphaTest:0.02">
     </a-plane>
 
-    <!-- botão fechar / avançar -->
+    <!-- botão fechar / avançar (a classe "clickable" é adicionada via JS
+         só quando o painel realmente fica visível — ver script de lógica
+         do tablet/alerta mais abaixo) -->
     <a-plane
     id="fecharAlerta"
-    class="clickable"
-    width="1.45"
-height="0.30"
-position="0 -0.50 0.01"
+    width="1.8"
+height="0.36"
+position="0 -1.35 0.01"
     material="color:#02160d; shader:flat"
     animation__hoverin="property: scale; startEvents: mouseenter; to: 1.06 1.06 1.06; dur: 150"
     animation__hoverout="property: scale; startEvents: mouseleave; to: 1 1 1; dur: 150">
 
         <a-plane
-        width="1.55"
-        height="0.36"
+        width="1.9"
+        height="0.42"
         position="0 0 -0.005"
         material="color:#18d49d; opacity:0.95">
         </a-plane>
@@ -323,7 +389,7 @@ position="0 -0.50 0.01"
         <a-text
         value="ENTENDIDO"
         align="center"
-        width="1.6"
+        width="1.9"
         color="#ffffff"
         position="0 0 0.01">
         </a-text>
@@ -556,7 +622,12 @@ material="color:#232323; metalness:0; roughness:0.9">
         material="color:#101010; metalness:0.05; roughness:0.5">
     </a-box>
 
-    <!-- tela -->
+    <!-- tela: fica visível desde o início (é um objeto real do mundo), mas
+         o clique só tem efeito quando "alertaDisponivel" é true — controlado
+         no script de lógica mais abaixo. Como o objeto sempre esteve visível
+         (não estava escondido atrás de um "visible=false"), não há o bug de
+         fuse prematuro aqui: o cursor pode mirar nele a qualquer momento,
+         só não acontece nada até a análise ficar pronta. -->
     <a-plane
         id="telaTablet"
         class="clickable"
@@ -1002,6 +1073,7 @@ material="color:#161616; metalness:0.05; roughness:0.7">
 const tela = document.querySelector("#telaTablet");
 const painelAlerta = document.querySelector("#painelAlerta");
 const fecharAlerta = document.querySelector("#fecharAlerta");
+const cursorAnalise = document.querySelector("#cursor");
 
 let alertaDisponivel = false;
 
@@ -1037,7 +1109,7 @@ function desenharConteudoAlerta(){
     ctx.fillStyle = '#9dffd4';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.font = "700 74px Orbitron, Arial, sans-serif";
+    ctx.font = "700 84px Orbitron, Arial, sans-serif";
     ctx.fillText('ALERTA · ANÁLISE LEAK VISION', canvas.width / 2, 39);
 
     // corpo do texto, quebrando linha automaticamente
@@ -1051,12 +1123,12 @@ function desenharConteudoAlerta(){
     ctx.fillStyle = '#eafff2';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'alphabetic';
-    ctx.font = "600 54px Rajdhani, Arial, sans-serif";
+    ctx.font = "600 60px Rajdhani, Arial, sans-serif";
 
-    const margem = 55;
+    const margem = 60;
     const larguraMaxima = canvas.width - margem * 2;
-    const alturaLinha = 80;
-    let y = 212;
+    const alturaLinha = 82;
+    let y = 200;
 
     paragrafos.forEach(paragrafo => {
         const palavras = paragrafo.split(' ');
@@ -1108,6 +1180,28 @@ setTimeout(()=>{
 
 },9000);
 
+// Libera (ou revoga) o clique do botão "ENTENDIDO" só quando o painel
+// realmente fica visível. O #fecharAlerta não nasce com a classe
+// "clickable" no HTML por esse exato motivo: se nascesse, o cursor de
+// gaze conseguiria mirar e completar o fuse nele mesmo com o painel
+// escondido ("visible=false" só afeta a renderização, não o raycast do
+// three.js), e o painel fecharia sozinho antes mesmo de aparecer.
+function atualizarClickablePainel(visivel){
+
+    if(visivel){
+        fecharAlerta.classList.add("clickable");
+    } else {
+        fecharAlerta.classList.remove("clickable");
+    }
+
+    // Força o raycaster a reconhecer a mudança imediatamente, em vez de
+    // esperar o próximo refresh automático.
+    if (cursorAnalise && cursorAnalise.components && cursorAnalise.components.raycaster) {
+        cursorAnalise.components.raycaster.refreshObjects();
+    }
+
+}
+
 tela.addEventListener("click", ()=>{
 
     if(!alertaDisponivel) return;
@@ -1118,6 +1212,7 @@ tela.addEventListener("click", ()=>{
 
         painelAlerta.setAttribute("visible", true);
         painelAlerta.emit("aparecer");
+        atualizarClickablePainel(true);
 
         // primeira vez que abre: tela para de piscar e fica em verde fixo
         // (como um "lido")
@@ -1130,6 +1225,7 @@ tela.addEventListener("click", ()=>{
     } else {
 
         painelAlerta.setAttribute("visible", false);
+        atualizarClickablePainel(false);
 
     }
 
@@ -1137,7 +1233,12 @@ tela.addEventListener("click", ()=>{
 
 fecharAlerta.addEventListener("click", ()=>{
 
+    // Segurança extra: ignora qualquer clique caso o painel ainda não
+    // esteja de fato visível.
+    if (painelAlerta.getAttribute("visible") !== true) return;
+
     painelAlerta.setAttribute("visible", false);
+    atualizarClickablePainel(false);
 
 });
 
