@@ -20,11 +20,14 @@ def index():
 def cabine():
     return render_template("cabine.html")
 
+@app.route("/intro")
+def intro():
+    return render_template("intro.html")
 
-# (futuramente)
 @app.route("/analise")
 def analise():
     return render_template("analise.html")
+
 # ==========================
 # Inicialização
 # ==========================
