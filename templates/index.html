@@ -427,9 +427,9 @@ dur:180000">
         material="shader:flat">
     </a-plane>
 
-    <!-- Fundo -->
+    <!-- Fundo (a classe "clickable" é adicionada via JS só quando o botão aparece de verdade) -->
     <a-plane
-        class="clickable"
+        id="botao-fundo"
         width="2.96"
         height="0.71"
         color="#02130b"
@@ -509,6 +509,7 @@ position="1.43 -0.25 0.02"></a-plane>
     <a-camera position="0 1.6 0">
 
         <a-entity
+            id="cursor-gaze"
             cursor="fuse: true; fuseTimeout: 1200"
             raycaster="objects: .clickable; far: 30"
             position="0 0 -1"
@@ -592,7 +593,7 @@ function escreverMensagem(){
 
         }else{
 
-            botao.setAttribute("visible",true);
+            mostrarBotao();
 
         }
 
@@ -600,7 +601,33 @@ function escreverMensagem(){
 
 }
 
+// O three.js raycasta objetos mesmo quando um ancestral está com visible=false
+// (o "visible" do A-Frame só afeta a renderização, não o raycast). Por isso o
+// clique disparava "do nada": o cursor de gaze já conseguia mirar e "fusear"
+// no botão antes dele aparecer de verdade. A solução é só tornar o plano do
+// botão clicável (adicionar a classe .clickable, que é o seletor usado pelo
+// raycaster) no exato momento em que ele fica visível.
+function mostrarBotao(){
+
+    botao.setAttribute("visible", true);
+
+    const fundo = document.querySelector("#botao-fundo");
+    fundo.classList.add("clickable");
+
+    // Força o raycaster a reconhecer o novo elemento .clickable imediatamente,
+    // em vez de esperar o próximo refresh automático.
+    const cursor = document.querySelector("#cursor-gaze");
+    if (cursor && cursor.components && cursor.components.raycaster) {
+        cursor.components.raycaster.refreshObjects();
+    }
+
+}
+
 botao.addEventListener("click",()=>{
+
+    // Segurança extra: ignora qualquer clique caso o botão ainda não esteja
+    // de fato visível (evita navegação acidental).
+    if (botao.getAttribute("visible") !== true) return;
 
     document.querySelector("#fade").style.opacity="1";
 
